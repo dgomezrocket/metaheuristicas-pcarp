@@ -3,6 +3,8 @@ import networkx as nx
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import datetime
+import os
 
 
 # -------------------------- FUNCIONES PRINCIPALES --------------------------
@@ -233,11 +235,21 @@ def plot_all_routes(graph, routes):
                 y = [graph.nodes[u]['y'], graph.nodes[v]['y']]
                 ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
 
+    # Crear la carpeta "imagenes" si no existe
+    if not os.path.exists('imagenes'):
+        os.makedirs('imagenes')
+
+    # Obtener fecha y hora actual
+    now = datetime.datetime.now()
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+    # Guardar la imagen con fecha y hora en el nombre
     plt.title("Vehicle Routes")
-    plt.savefig('all_vehicle_routes.png')
+    filename = f'SA_all_vehicle_routes_{timestamp}.png'
+    filepath = os.path.join('imagenes', filename)
+    plt.savefig(filepath)
     plt.show()
     plt.close()
-
 
 # -------------------------- EJECUCIÓN PRINCIPAL --------------------------
 
