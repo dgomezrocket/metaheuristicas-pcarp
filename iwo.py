@@ -3,13 +3,14 @@ import networkx as nx
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import deque
 
 def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, initial_population=10, max_population=50):
     """
-    Implementación del algoritmo de Invasive Weed Optimization (IWO) para CARP.
+    Implementación del algoritmo de Invasive Weed Optimization (IWO) para PCARP.
     """
     # Inicializar la población de soluciones
-    population = [initialize_routes(graph, num_vehicles, vehicle_capacity)[0] for _ in range(initial_population)]
+    population = [initialize_routes_connected(graph, num_vehicles, vehicle_capacity)[0] for _ in range(initial_population)]
     population_costs = [calculate_total_cost(route, graph) for route in population]
     best_routes = min(population, key=lambda x: calculate_total_cost(x, graph))
     best_cost = min(population_costs)
@@ -23,11 +24,11 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
             num_offspring = int((max_population - len(population)) * (1 - (population_costs[i] / max(population_costs))) + 1)
             for _ in range(num_offspring):
                 # Mutación y generación de nuevos individuos
-                new_solution = mutate_solution(population[i], graph, vehicle_capacity)
+                new_solution = mutate_solution_connected(population[i], graph, vehicle_capacity)
                 new_population.append(new_solution)
 
-        # Evaluar la nueva población
-        new_population_costs = [calculate_total_cost(route, graph) for route in new_population]
+        # Evaluar la nueva población con penalización para aristas no visitadas
+        new_population_costs = [calculate_total_cost(route, graph) + penalty_unvisited(route, graph) for route in new_population]
         combined_population = population + new_population
         combined_costs = population_costs + new_population_costs
 
@@ -44,13 +45,13 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
 
     return best_routes, best_cost
 
-def initialize_routes(graph, num_vehicles, vehicle_capacity):
+def initialize_routes_connected(graph, num_vehicles, vehicle_capacity):
     """
-    Inicializa rutas para los vehículos tratando de abarcar la mayor cantidad de aristas posible.
+    Inicializa rutas para los vehículos tratando de crear rutas más conectadas y compactas.
     """
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
-    unvisited_edges = list(graph.edges(keys=True, data=True))
+    unvisited_edges = deque(graph.edges(keys=True, data=True))
 
     start_nodes = random.sample(list(graph.nodes), num_vehicles)
 
@@ -59,6 +60,7 @@ def initialize_routes(graph, num_vehicles, vehicle_capacity):
         while unvisited_edges and vehicle_loads[vehicle_id] < vehicle_capacity:
             edges_from_node = [edge for edge in unvisited_edges if edge[0] == current_node or edge[1] == current_node]
             valid_edges = []
+
             for edge in edges_from_node:
                 u, v, key, data = edge
                 demand = data.get('demand', 1)
@@ -66,7 +68,7 @@ def initialize_routes(graph, num_vehicles, vehicle_capacity):
                     valid_edges.append(edge)
 
             if not valid_edges:
-                # Si no hay más aristas válidas, se selecciona una arista no visitada al azar
+                # Seleccionar una arista no visitada para mejorar la cobertura
                 if unvisited_edges:
                     edge = random.choice(unvisited_edges)
                     unvisited_edges.remove(edge)
@@ -77,10 +79,10 @@ def initialize_routes(graph, num_vehicles, vehicle_capacity):
                 else:
                     break
             else:
-                # Seleccionar el arco más largo o no visitado para maximizar la cobertura
-                longest_edge = max(valid_edges, key=lambda edge: edge[3]['length'])
-                unvisited_edges.remove(longest_edge)
-                u, v, key, data = longest_edge
+                # Seleccionar la arista más cercana y añadirla a la ruta
+                nearest_edge = min(valid_edges, key=lambda edge: edge[3]['length'])
+                unvisited_edges.remove(nearest_edge)
+                u, v, key, data = nearest_edge
                 routes[vehicle_id].append((u, v))
                 vehicle_loads[vehicle_id] += data['demand']
                 current_node = v if u == current_node else u
@@ -99,16 +101,43 @@ def calculate_total_cost(routes, graph):
                 total_cost += edge_data[0]['length']
     return total_cost
 
-def mutate_solution(solution, graph, vehicle_capacity):
+def penalty_unvisited(routes, graph):
     """
-    Genera una mutación en una solución existente cambiando las rutas.
+    Calcula la penalización por aristas no visitadas.
+    """
+    visited_edges = {(u, v) for route in routes for u, v in route}
+    total_edges = {(u, v) for u, v, _ in graph.edges(keys=True)}
+    unvisited_edges = total_edges - visited_edges
+    return len(unvisited_edges) * 1000  # Penalización alta para aristas no visitadas
+
+def mutate_solution_connected(solution, graph, vehicle_capacity):
+    """
+    Genera una mutación en una solución existente cambiando las rutas manteniendo la conectividad.
     """
     new_solution = [route[:] for route in solution]
     vehicle_id = random.choice([i for i in range(len(new_solution)) if new_solution[i]])
+
     if len(new_solution[vehicle_id]) > 1:
         idx1, idx2 = random.sample(range(len(new_solution[vehicle_id])), 2)
-        new_solution[vehicle_id][idx1], new_solution[vehicle_id][idx2] = new_solution[vehicle_id][idx2], \
-        new_solution[vehicle_id][idx1]
+        new_solution[vehicle_id][idx1], new_solution[vehicle_id][idx2] = new_solution[vehicle_id][idx2], new_solution[vehicle_id][idx1]
+
+        # Recalcular la carga para mantener la capacidad
+        load = 0
+        for u, v in new_solution[vehicle_id]:
+            if graph.has_edge(u, v):
+                edge_data = graph.get_edge_data(u, v)
+                load += edge_data[0].get('demand', 1)
+                if load > vehicle_capacity:
+                    new_solution[vehicle_id] = new_solution[vehicle_id][:idx1+1]
+                    break
+
+    # Forzar la adición de una arista no visitada para mejorar la cobertura
+    unvisited_edges = [edge for edge in graph.edges(keys=True) if (edge[0], edge[1]) not in new_solution[vehicle_id]]
+    if unvisited_edges:
+        new_edge = random.choice(unvisited_edges)
+        u, v, key = new_edge
+        new_solution[vehicle_id].append((u, v))
+
     return new_solution
 
 def plot_all_routes(graph, routes):
@@ -128,7 +157,6 @@ def plot_all_routes(graph, routes):
     plt.show()
     plt.close()
 
-# Ejecución principal usando IWO mejorado
 def main_iwo():
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
