@@ -27,46 +27,96 @@ def cluster_graph(graph, num_clusters):
 
 def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_labels):
     """
-    Inicializa rutas conectadas para los vehículos basándose en áreas específicas (clústeres).
+    Inicializa rutas conectadas para los vehículos basándose en áreas específicas (clústeres),
+    asegurando que todas las aristas con demanda sean cubiertas.
     """
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
 
-    # Asignar clusters a vehículos
+    # Obtener todas las aristas con demanda
+    demand_edges = [(u, v, data) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0]
+
+    # Ordenar las aristas por cluster
     clusters = list(set(cluster_labels))
+    edges_by_cluster = {cluster: [] for cluster in clusters}
+    for u, v, data in demand_edges:
+        cluster_u = graph.nodes[u].get('cluster')
+        # Asignar la arista al clúster del nodo 'u'
+        edges_by_cluster[cluster_u].append((u, v, data))
+
+    # Asignar clusters a vehículos
     cluster_vehicle_assignment = {cluster: i % num_vehicles for i, cluster in enumerate(clusters)}
 
-    # Crear subgrafos por clúster
-    cluster_subgraphs = {}
+    # Asignar aristas a vehículos respetando la capacidad
     for cluster in clusters:
-        nodes_in_cluster = [node for node, data in graph.nodes(data=True) if data.get('cluster') == cluster]
-        cluster_subgraphs[cluster] = graph.subgraph(nodes_in_cluster)
-
-    # Construir rutas conectadas por vehículo
-    for cluster, subgraph in cluster_subgraphs.items():
         vehicle_id = cluster_vehicle_assignment[cluster]
-        # Obtener las aristas con demanda en el subgrafo
-        demand_edges = [(u, v, data) for u, v, data in subgraph.edges(data=True) if data.get('demand', 0) > 0]
-        if not demand_edges:
-            continue
+        edges_in_cluster = edges_by_cluster[cluster]
+        current_load = vehicle_loads[vehicle_id]
 
-        # Crear un árbol de expansión mínima para asegurar conectividad
-        mst = nx.minimum_spanning_tree(subgraph, weight='length')
-        edges_in_mst = list(mst.edges(data=True))
-
-        current_load = 0
-        route = []
-        for u, v, data in edges_in_mst:
+        for u, v, data in edges_in_cluster:
             demand = data.get('demand', 1)
             if current_load + demand > vehicle_capacity:
-                break
-            route.append((u, v))
-            current_load += demand
+                # Buscar otro vehículo con capacidad disponible
+                assigned = False
+                for vid in range(num_vehicles):
+                    if vehicle_loads[vid] + demand <= vehicle_capacity:
+                        routes[vid].append((u, v))
+                        vehicle_loads[vid] += demand
+                        assigned = True
+                        break
+                if not assigned:
+                    print("Advertencia: Demanda excede la capacidad total disponible.")
+            else:
+                routes[vehicle_id].append((u, v))
+                vehicle_loads[vehicle_id] += demand
 
-        routes[vehicle_id].extend(route)
-        vehicle_loads[vehicle_id] = current_load
+    # Construir rutas conectadas para cada vehículo
+    for vehicle_id in range(num_vehicles):
+        route_edges = routes[vehicle_id]
+        if not route_edges:
+            continue
+        # Crear un subgrafo con las aristas asignadas
+        subgraph = nx.MultiGraph()
+        for u, v in route_edges:
+            edge_data = graph.get_edge_data(u, v)
+            if edge_data:
+                for key, data in edge_data.items():
+                    subgraph.add_edge(u, v, key=key, **data)
+            else:
+                print(f"Arista ({u}, {v}) no encontrada en el grafo.")
+
+        # Conectar el subgrafo usando caminos más cortos entre componentes
+        if not nx.is_connected(subgraph.to_undirected()):
+            components = list(nx.connected_components(subgraph.to_undirected()))
+            while len(components) > 1:
+                comp1 = components[0]
+                comp2 = components[1]
+                min_distance = float('inf')
+                closest_pair = None
+                for node_u in comp1:
+                    for node_v in comp2:
+                        try:
+                            distance = nx.shortest_path_length(graph, source=node_u, target=node_v, weight='length')
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_pair = (node_u, node_v)
+                        except nx.NetworkXNoPath:
+                            continue
+                if closest_pair:
+                    path = nx.shortest_path(graph, source=closest_pair[0], target=closest_pair[1], weight='length')
+                    # Agregar las aristas del camino al subgrafo y a la ruta
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i + 1]
+                        edge_data = graph.get_edge_data(u, v)
+                        if edge_data:
+                            for key, data in edge_data.items():
+                                subgraph.add_edge(u, v, key=key, **data)
+                                routes[vehicle_id].append((u, v))
+                components = list(nx.connected_components(subgraph.to_undirected()))
 
     return routes, vehicle_loads
+
+
 
 
 
@@ -99,7 +149,7 @@ def calculate_total_cost(routes, graph):
 
 def mutate_solution_connected(solution, graph, vehicle_capacity):
     """
-    Realiza una mutación que mantiene la conectividad de la ruta.
+    Realiza una mutación que mantiene la conectividad de la ruta y la cobertura de todas las demandas.
     """
     new_solution = [route[:] for route in solution]
     vehicle_id = random.choice([i for i in range(len(new_solution)) if new_solution[i]])
@@ -108,37 +158,57 @@ def mutate_solution_connected(solution, graph, vehicle_capacity):
     if len(route) > 2:
         # Seleccionar un segmento de la ruta para invertir
         idx1, idx2 = sorted(random.sample(range(len(route)), 2))
-        route[idx1:idx2] = reversed(route[idx1:idx2])
+        mutated_route = route[:]
+        mutated_route[idx1:idx2] = reversed(route[idx1:idx2])
 
         # Verificar conectividad
         nodes_in_route = set()
-        for u, v in route:
+        for u, v in mutated_route:
             nodes_in_route.update([u, v])
         subgraph = graph.subgraph(nodes_in_route)
         if not nx.is_connected(subgraph):
-            # Si no es conectada, revertir la mutación
-            new_solution[vehicle_id] = solution[vehicle_id][:]
+            # Si no es conectada, no aplicar la mutación
+            return solution
 
         # Verificar capacidad
-        total_demand = sum(graph.get_edge_data(u, v)[0].get('demand', 1) for u, v in route)
+        total_demand = sum(graph.get_edge_data(u, v)[0].get('demand', 1) for u, v in mutated_route)
         if total_demand > vehicle_capacity:
-            # Si excede la capacidad, revertir la mutación
-            new_solution[vehicle_id] = solution[vehicle_id][:]
+            # Si excede la capacidad, no aplicar la mutación
+            return solution
+
+        new_solution[vehicle_id] = mutated_route
 
     return new_solution
 
 
 
+
 def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, initial_population=10, max_population=50):
     """
-    Implementación del algoritmo de Invasive Weed Optimization (IWO) para PCARP con clustering de áreas.
+    Implementación del algoritmo de Invasive Weed Optimization (IWO) para PCARP con clustering de áreas,
+    asegurando la cobertura completa de las demandas.
     """
     num_clusters = num_vehicles
     cluster_labels, cluster_centers = cluster_graph(graph, num_clusters)
 
+    # Obtener todas las aristas con demanda
+    demand_edges = [(u, v) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0]
+
     # Inicializar la población de soluciones por áreas
-    population = [initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_labels)[0] for _ in
-                  range(initial_population)]
+    population = []
+    for _ in range(initial_population):
+        routes, vehicle_loads = initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_labels)
+        # Verificar que se cubren todas las demandas
+        assigned_edges = set(edge for route in routes for edge in route)
+        if set(demand_edges).issubset(assigned_edges):
+            population.append(routes)
+        else:
+            print("Advertencia: Inicialización no cubrió todas las demandas.")
+
+    # Si no se pudo inicializar una población válida, abortar
+    if not population:
+        raise Exception("No se pudo inicializar una población válida que cubra todas las demandas.")
+
     population_costs = [calculate_total_cost(route, graph) for route in population]
     best_routes = min(population, key=lambda x: calculate_total_cost(x, graph))
     best_cost = min(population_costs)
@@ -152,7 +222,14 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
                 (max_population - len(population)) * (1 - (population_costs[i] / max(population_costs))) + 1)
             for _ in range(num_offspring):
                 new_solution = mutate_solution_connected(population[i], graph, vehicle_capacity)
-                new_population.append(new_solution)
+                # Verificar que se mantienen todas las demandas
+                assigned_edges = set(edge for route in new_solution for edge in route)
+                if set(demand_edges).issubset(assigned_edges):
+                    new_population.append(new_solution)
+
+        if not new_population:
+            print("Advertencia: No se generaron nuevas soluciones válidas en la generación", generation)
+            continue
 
         new_population_costs = [calculate_total_cost(route, graph) for route in new_population]
         combined_population = population + new_population
@@ -168,6 +245,7 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
             best_routes = population[np.argmin(population_costs)]
 
     return best_routes, best_cost
+
 
 
 def plot_all_routes(graph, routes):
@@ -205,11 +283,23 @@ def main_iwo():
         data['demand'] = random.randint(1, 10)
 
     best_routes, best_cost = iwo_algorithm(graph, num_vehicles, vehicle_capacity)
+
+    # Verificar que todas las demandas están cubiertas
+    demand_edges = set((u, v) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0)
+    assigned_edges = set(edge for route in best_routes for edge in route)
+    uncovered_edges = demand_edges - assigned_edges
+    if uncovered_edges:
+        print("Las siguientes aristas con demanda no fueron asignadas:", uncovered_edges)
+    else:
+        print("Todas las aristas con demanda fueron asignadas.")
+
     print(f"Best total cost: {best_cost}")
     for i, route in enumerate(best_routes):
         print(f"Vehicle {i + 1} Route: {route}")
 
     plot_all_routes(graph, best_routes)
+
+
 
 
 if __name__ == "__main__":
