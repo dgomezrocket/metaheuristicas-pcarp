@@ -4,27 +4,12 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-# Configuración de IWO
 def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, initial_population=10, max_population=50):
     """
     Implementación del algoritmo de Invasive Weed Optimization (IWO) para CARP.
-
-    Parámetros:
-    - graph: Grafo de la ciudad.
-    - num_vehicles: Número de vehículos disponibles para la ruta.
-    - vehicle_capacity: Capacidad máxima de cada vehículo.
-    - max_generations: Número máximo de generaciones.
-    - initial_population: Tamaño de la población inicial.
-    - max_population: Tamaño máximo de la población.
-
-    Retorna:
-    - best_routes: Mejor conjunto de rutas encontradas.
-    - best_cost: Costo total más bajo encontrado.
     """
     # Inicializar la población de soluciones
-    population = [initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity)[0] for _ in
-                  range(initial_population)]
+    population = [initialize_routes(graph, num_vehicles, vehicle_capacity)[0] for _ in range(initial_population)]
     population_costs = [calculate_total_cost(route, graph) for route in population]
     best_routes = min(population, key=lambda x: calculate_total_cost(x, graph))
     best_cost = min(population_costs)
@@ -35,9 +20,7 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
 
         # Reproducción de soluciones
         for i in range(len(population)):
-            num_offspring = int(
-                (max_population - len(population)) * (1 - (population_costs[i] / max(population_costs))) + 1)
-
+            num_offspring = int((max_population - len(population)) * (1 - (population_costs[i] / max(population_costs))) + 1)
             for _ in range(num_offspring):
                 # Mutación y generación de nuevos individuos
                 new_solution = mutate_solution(population[i], graph, vehicle_capacity)
@@ -61,31 +44,19 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
 
     return best_routes, best_cost
 
-def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
+def initialize_routes(graph, num_vehicles, vehicle_capacity):
     """
-    Inicializa rutas para los vehículos utilizando el algoritmo de Vecino Más Cercano.
-
-    Parámetros:
-    - graph: Grafo de la ciudad con arcos que representan las calles y nodos que representan las intersecciones.
-    - num_vehicles: Número de vehículos disponibles para la ruta.
-    - vehicle_capacity: Capacidad máxima de cada vehículo para recolectar demanda.
-
-    Retorna:
-    - routes: Lista de rutas, cada una correspondiente a un vehículo.
+    Inicializa rutas para los vehículos tratando de abarcar la mayor cantidad de aristas posible.
     """
-    # Inicialización de variables
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
     unvisited_edges = list(graph.edges(keys=True, data=True))
 
-    # Seleccionar nodos de inicio aleatorios para cada vehículo
     start_nodes = random.sample(list(graph.nodes), num_vehicles)
 
-    # Construir rutas para cada vehículo usando el vecino más cercano
     for vehicle_id, start_node in enumerate(start_nodes):
         current_node = start_node
-        while unvisited_edges:
-            # Filtrar arcos que conectan con el nodo actual y cumplen con la capacidad del vehículo
+        while unvisited_edges and vehicle_loads[vehicle_id] < vehicle_capacity:
             edges_from_node = [edge for edge in unvisited_edges if edge[0] == current_node or edge[1] == current_node]
             valid_edges = []
             for edge in edges_from_node:
@@ -94,42 +65,31 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
                 if vehicle_loads[vehicle_id] + demand <= vehicle_capacity:
                     valid_edges.append(edge)
 
-            # Si no hay arcos válidos, el vehículo se detiene
             if not valid_edges:
-                break
-
-            # Seleccionar el arco más cercano basado en la longitud
-            nearest_edge = min(valid_edges, key=lambda edge: edge[3]['length'])
-            unvisited_edges.remove(nearest_edge)
-
-            # Actualizar la ruta y la carga del vehículo
-            u, v, key, data = nearest_edge
-            vehicle_loads[vehicle_id] += data['demand']
-
-            if not routes[vehicle_id]:
-                routes[vehicle_id].append((u, v))
-                current_node = v
-            else:
-                last_node = routes[vehicle_id][-1][1]
-                if u == last_node:
+                # Si no hay más aristas válidas, se selecciona una arista no visitada al azar
+                if unvisited_edges:
+                    edge = random.choice(unvisited_edges)
+                    unvisited_edges.remove(edge)
+                    u, v, key, data = edge
                     routes[vehicle_id].append((u, v))
-                    current_node = v
+                    vehicle_loads[vehicle_id] += data['demand']
+                    current_node = v if u == current_node else u
                 else:
-                    routes[vehicle_id].append((v, u))
-                    current_node = u
+                    break
+            else:
+                # Seleccionar el arco más largo o no visitado para maximizar la cobertura
+                longest_edge = max(valid_edges, key=lambda edge: edge[3]['length'])
+                unvisited_edges.remove(longest_edge)
+                u, v, key, data = longest_edge
+                routes[vehicle_id].append((u, v))
+                vehicle_loads[vehicle_id] += data['demand']
+                current_node = v if u == current_node else u
 
     return routes, vehicle_loads, unvisited_edges
 
 def calculate_total_cost(routes, graph):
     """
     Calcula el costo total de todas las rutas generadas.
-
-    Parámetros:
-    - routes: Lista de rutas, cada una correspondiente a un vehículo.
-    - graph: Grafo de la ciudad que contiene información de las aristas (longitud).
-
-    Retorna:
-    - total_cost: Costo total de todas las rutas en términos de longitud acumulada.
     """
     total_cost = 0
     for route in routes:
@@ -139,18 +99,9 @@ def calculate_total_cost(routes, graph):
                 total_cost += edge_data[0]['length']
     return total_cost
 
-
 def mutate_solution(solution, graph, vehicle_capacity):
     """
     Genera una mutación en una solución existente cambiando las rutas.
-
-    Parámetros:
-    - solution: Solución actual (rutas).
-    - graph: Grafo de la ciudad.
-    - vehicle_capacity: Capacidad máxima de cada vehículo.
-
-    Retorna:
-    - new_solution: Nueva solución mutada.
     """
     new_solution = [route[:] for route in solution]
     vehicle_id = random.choice([i for i in range(len(new_solution)) if new_solution[i]])
@@ -163,14 +114,8 @@ def mutate_solution(solution, graph, vehicle_capacity):
 def plot_all_routes(graph, routes):
     """
     Dibuja todas las rutas generadas en un solo mapa con diferentes colores para cada vehículo.
-
-    Parámetros:
-    - graph: Grafo de la ciudad.
-    - routes: Rutas de los vehículos a visualizar.
     """
     fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
-
-    # Colores para cada vehículo
     colors = ['r', 'g', 'b', 'c', 'm', 'y']
     for vehicle_id, route in enumerate(routes):
         color = colors[vehicle_id % len(colors)]
@@ -179,14 +124,11 @@ def plot_all_routes(graph, routes):
                 x = [graph.nodes[u]['x'], graph.nodes[v]['x']]
                 y = [graph.nodes[u]['y'], graph.nodes[v]['y']]
                 ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
-
     plt.title("Vehicle Routes")
-    plt.savefig('all_vehicle_routes.png')
     plt.show()
     plt.close()
 
-
-# Ejecución principal usando IWO
+# Ejecución principal usando IWO mejorado
 def main_iwo():
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
@@ -200,15 +142,12 @@ def main_iwo():
             data['length'] = random.uniform(50, 500)
         data['demand'] = random.randint(1, 10)
 
-    # Ejecutar IWO para encontrar las mejores rutas
     best_routes, best_cost = iwo_algorithm(graph, num_vehicles, vehicle_capacity)
-
     print(f"Best total cost: {best_cost}")
     for i, route in enumerate(best_routes):
         print(f"Vehicle {i + 1} Route: {route}")
 
     plot_all_routes(graph, best_routes)
-
 
 if __name__ == "__main__":
     main_iwo()
