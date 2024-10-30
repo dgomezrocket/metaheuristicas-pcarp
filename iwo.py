@@ -6,10 +6,22 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from collections import deque
 
-
 def cluster_graph(graph, num_clusters):
     """
-    Divide el grafo en áreas utilizando el algoritmo k-means clustering.
+    Divide el grafo en áreas utilizando el algoritmo de clustering k-means.
+
+    Parámetros:
+    - graph: Grafo de NetworkX que representa el mapa.
+    - num_clusters: Número de clústeres en los que se dividirá el grafo.
+
+    Retorna:
+    - labels: Lista de etiquetas de clúster asignadas a cada nodo.
+    - cluster_centers_: Coordenadas de los centros de los clústeres.
+
+    Descripción:
+    Esta función toma las coordenadas de los nodos del grafo y aplica k-means
+    para agruparlos en clústeres. Luego, asigna a cada nodo la etiqueta del
+    clúster al que pertenece.
     """
     nodes = list(graph.nodes(data=True))
     coordinates = np.array([[data['y'], data['x']] for _, data in nodes])
@@ -24,11 +36,27 @@ def cluster_graph(graph, num_clusters):
 
     return labels, kmeans.cluster_centers_
 
-
 def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_labels):
     """
-    Inicializa rutas conectadas para los vehículos basándose en áreas específicas (clústeres),
+    Inicializa rutas conectadas para los vehículos basándose en clústeres,
     asegurando que todas las aristas con demanda sean cubiertas.
+
+    Parámetros:
+    - graph: Grafo de NetworkX que representa el mapa.
+    - num_vehicles: Número de vehículos disponibles.
+    - vehicle_capacity: Capacidad máxima de carga de cada vehículo.
+    - cluster_labels: Etiquetas de clúster asignadas a los nodos.
+
+    Retorna:
+    - routes: Lista de rutas para cada vehículo (listas de aristas).
+    - vehicle_loads: Lista de cargas actuales de cada vehículo.
+
+    Descripción:
+    Esta función asigna todas las aristas con demanda a los vehículos,
+    respetando la capacidad de cada uno. Las aristas se agrupan por clúster
+    y se asignan inicialmente al vehículo correspondiente. Luego, se construyen
+    rutas conectadas para cada vehículo, conectando componentes desconectados
+    si es necesario.
     """
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
@@ -36,7 +64,7 @@ def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_lab
     # Obtener todas las aristas con demanda
     demand_edges = [(u, v, data) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0]
 
-    # Ordenar las aristas por cluster
+    # Ordenar las aristas por clúster
     clusters = list(set(cluster_labels))
     edges_by_cluster = {cluster: [] for cluster in clusters}
     for u, v, data in demand_edges:
@@ -44,7 +72,7 @@ def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_lab
         # Asignar la arista al clúster del nodo 'u'
         edges_by_cluster[cluster_u].append((u, v, data))
 
-    # Asignar clusters a vehículos
+    # Asignar clústeres a vehículos
     cluster_vehicle_assignment = {cluster: i % num_vehicles for i, cluster in enumerate(clusters)}
 
     # Asignar aristas a vehículos respetando la capacidad
@@ -116,13 +144,21 @@ def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_lab
 
     return routes, vehicle_loads
 
-
-
-
-
 def calculate_total_cost(routes, graph):
     """
     Calcula el costo total de todas las rutas, incluyendo desplazamientos entre aristas.
+
+    Parámetros:
+    - routes: Lista de rutas para cada vehículo (listas de aristas).
+    - graph: Grafo de NetworkX que representa el mapa.
+
+    Retorna:
+    - total_cost: Costo total acumulado de todas las rutas.
+
+    Descripción:
+    Esta función suma el costo de recorrer cada arista en las rutas y el costo
+    de desplazarse entre aristas no consecutivas (si es necesario), calculando
+    el camino más corto entre ellas.
     """
     total_cost = 0
     for route in routes:
@@ -145,11 +181,22 @@ def calculate_total_cost(routes, graph):
         # Regresar al depósito si es necesario (opcional)
     return total_cost
 
-
-
 def mutate_solution_connected(solution, graph, vehicle_capacity):
     """
     Realiza una mutación que mantiene la conectividad de la ruta y la cobertura de todas las demandas.
+
+    Parámetros:
+    - solution: Solución actual (lista de rutas para cada vehículo).
+    - graph: Grafo de NetworkX que representa el mapa.
+    - vehicle_capacity: Capacidad máxima de carga de cada vehículo.
+
+    Retorna:
+    - new_solution: Nueva solución después de la mutación.
+
+    Descripción:
+    Esta función aplica una mutación a una ruta seleccionada al azar,
+    invirtiendo un segmento de la ruta. Se asegura de que la mutación no
+    rompa la conectividad de la ruta ni exceda la capacidad del vehículo.
     """
     new_solution = [route[:] for route in solution]
     vehicle_id = random.choice([i for i in range(len(new_solution)) if new_solution[i]])
@@ -180,13 +227,28 @@ def mutate_solution_connected(solution, graph, vehicle_capacity):
 
     return new_solution
 
-
-
-
 def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, initial_population=10, max_population=50):
     """
     Implementación del algoritmo de Invasive Weed Optimization (IWO) para PCARP con clustering de áreas,
     asegurando la cobertura completa de las demandas.
+
+    Parámetros:
+    - graph: Grafo de NetworkX que representa el mapa.
+    - num_vehicles: Número de vehículos disponibles.
+    - vehicle_capacity: Capacidad máxima de carga de cada vehículo.
+    - max_generations: Número máximo de generaciones para el algoritmo IWO.
+    - initial_population: Tamaño de la población inicial.
+    - max_population: Tamaño máximo de la población durante la evolución.
+
+    Retorna:
+    - best_routes: Las mejores rutas encontradas para cada vehículo.
+    - best_cost: El costo total asociado a las mejores rutas.
+
+    Descripción:
+    Este algoritmo aplica IWO para encontrar rutas óptimas que cubran todas las
+    aristas con demanda, respetando las capacidades de los vehículos y
+    manteniendo las rutas conectadas. Utiliza mutaciones y selección basada en
+    costos para evolucionar la población de soluciones.
     """
     num_clusters = num_vehicles
     cluster_labels, cluster_centers = cluster_graph(graph, num_clusters)
@@ -218,6 +280,7 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
         new_population = []
 
         for i in range(len(population)):
+            # Determinar el número de descendientes según el costo
             num_offspring = int(
                 (max_population - len(population)) * (1 - (population_costs[i] / max(population_costs))) + 1)
             for _ in range(num_offspring):
@@ -235,6 +298,7 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
         combined_population = population + new_population
         combined_costs = population_costs + new_population_costs
 
+        # Seleccionar las mejores soluciones para la siguiente generación
         sorted_indices = np.argsort(combined_costs)
         population = [combined_population[i] for i in sorted_indices[:max_population]]
         population_costs = [combined_costs[i] for i in sorted_indices[:max_population]]
@@ -246,11 +310,18 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
 
     return best_routes, best_cost
 
-
-
 def plot_all_routes(graph, routes):
     """
     Dibuja todas las rutas generadas en un solo mapa con diferentes colores para cada vehículo.
+
+    Parámetros:
+    - graph: Grafo de NetworkX que representa el mapa.
+    - routes: Lista de rutas para cada vehículo (listas de aristas).
+
+    Descripción:
+    Esta función visualiza las rutas de todos los vehículos en el mapa, utilizando
+    diferentes colores para distinguir cada ruta. Ayuda a visualizar la cobertura
+    y conectividad de las rutas generadas.
     """
     fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
 
@@ -268,8 +339,18 @@ def plot_all_routes(graph, routes):
     plt.show()
     plt.close()
 
-
 def main_iwo():
+    """
+    Función principal que ejecuta el algoritmo IWO para resolver el problema CARP.
+
+    Descripción:
+    - Descarga y prepara el grafo de la ubicación especificada.
+    - Asigna demandas aleatorias a las aristas.
+    - Ejecuta el algoritmo IWO para encontrar las mejores rutas.
+    - Verifica que todas las demandas han sido cubiertas.
+    - Imprime el costo total y las rutas de cada vehículo.
+    - Genera un gráfico visual de las rutas.
+    """
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
     graph = ox.utils_graph.convert.to_undirected(graph)
@@ -277,6 +358,7 @@ def main_iwo():
     vehicle_capacity = 600
     num_vehicles = 3
 
+    # Asignar demandas y longitudes aleatorias a las aristas (si es necesario)
     for u, v, key, data in graph.edges(keys=True, data=True):
         if 'length' not in data:
             data['length'] = random.uniform(50, 500)
@@ -298,9 +380,6 @@ def main_iwo():
         print(f"Vehicle {i + 1} Route: {route}")
 
     plot_all_routes(graph, best_routes)
-
-
-
 
 if __name__ == "__main__":
     main_iwo()
