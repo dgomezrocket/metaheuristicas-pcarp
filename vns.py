@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 from sklearn.cluster import KMeans
+import time  # Importar el módulo time para medir el tiempo de ejecución
 
 # -------------------------- FUNCIONES PRINCIPALES --------------------------
 
@@ -19,9 +20,6 @@ def cluster_edges(graph, num_clusters):
 
     Retorna:
     - edge_clusters (dict): Diccionario que asigna a cada arista (representada como un frozenset de nodos) un número de cluster.
-
-    Descripción:
-    Esta función calcula el punto medio de cada arista (es decir, el promedio de las coordenadas 'x' e 'y' de los nodos que la componen) y aplica el algoritmo K-Means para agruparlas en 'num_clusters' clusters basados en su posición geográfica.
     """
     edges = list(graph.edges(data=True))
     edge_coords = []
@@ -53,13 +51,6 @@ def initialize_routes_clustered(graph, num_vehicles, vehicle_capacity):
     Retorna:
     - routes (list): Lista de rutas para cada vehículo; cada ruta es una lista de tuplas de aristas (u, v).
     - vehicle_loads (list): Lista de cargas actuales de cada vehículo.
-
-    Descripción:
-    La función agrupa las aristas con demanda en clusters y las asigna a los vehículos según el cluster al que pertenecen. Si un vehículo no tiene suficiente capacidad, se intenta asignar la arista a otro vehículo. Además, se asegura que las rutas de cada vehículo sean conexas utilizando un Árbol de Expansión Mínima (MST).
-
-    Notas:
-    - Las aristas se representan como frozensets para manejar grafos no dirigidos.
-    - Se utiliza un MST para conectar los nodos dentro de cada ruta de manera eficiente.
     """
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
@@ -127,13 +118,6 @@ def calculate_total_cost(routes, graph):
 
     Retorna:
     - total_cost (float): Costo total acumulado de todas las rutas.
-
-    Descripción:
-    La función suma los costos de todas las aristas en las rutas, incluyendo el costo de moverse desde el nodo actual al inicio de la siguiente arista si es necesario. El costo se basa en la longitud de las aristas y los caminos más cortos entre nodos.
-
-    Notas:
-    - Utiliza el atributo 'length' de las aristas como medida de costo.
-    - Si no hay un camino entre nodos, la excepción es manejada y se continúa.
     """
     total_cost = 0
     for route in routes:
@@ -166,13 +150,6 @@ def shaking(routes, graph, k):
     Retorna:
     - new_routes (list): Nueva solución perturbada.
     - new_vehicle_loads (list): Nuevas cargas actuales de cada vehículo después de los intercambios.
-
-    Descripción:
-    La función perturba la solución actual realizando 'k' intercambios aleatorios de aristas entre rutas de vehículos distintos. Después de los intercambios, se recalculan las cargas de los vehículos para asegurar que no se exceda la capacidad.
-
-    Notas:
-    - Solo se realizan intercambios entre vehículos que tienen rutas no vacías.
-    - Se verifica que haya suficientes vehículos con rutas para realizar los intercambios.
     """
     new_routes = [route[:] for route in routes]
 
@@ -218,14 +195,6 @@ def local_search(routes, graph, vehicle_capacity, vehicle_loads):
     Retorna:
     - best_routes (list): Mejor solución encontrada después de la búsqueda local.
     - vehicle_loads (list): Cargas actualizadas de cada vehículo.
-
-    Descripción:
-    La función busca mejorar la solución actual aplicando el movimiento 2-opt dentro de las rutas de cada vehículo. Intercambia segmentos de aristas para encontrar una ruta con menor costo, asegurando que no se exceda la capacidad del vehículo.
-
-    Notas:
-    - La búsqueda se detiene cuando no se encuentran más mejoras.
-    - Se verifica que las nuevas rutas sean factibles en términos de capacidad.
-    - Solo se considera el intercambio de segmentos adyacentes para eficiencia.
     """
     improved = True
     best_routes = [route[:] for route in routes]
@@ -269,25 +238,18 @@ def local_search(routes, graph, vehicle_capacity, vehicle_loads):
 
 def variable_neighborhood_search(graph, num_vehicles, vehicle_capacity, max_k=2, max_iterations=20):
     """
-    Implementa el algoritmo de Búsqueda con Vecindad Variable (VNS) para el Problema de Enrutamiento de Arcos con Capacidad (PCARP).
+    Implementa el algoritmo de Búsqueda con Vecindad Variable (VNS) para el PCARP.
 
     Parámetros:
     - graph (networkx.Graph): Grafo de la ciudad obtenido mediante OSMnx.
     - num_vehicles (int): Número de vehículos disponibles.
     - vehicle_capacity (int): Capacidad máxima de carga de cada vehículo.
-    - max_k (int, opcional): Número máximo de vecindarios (profundidad de la sacudida). Valor por defecto es 2.
-    - max_iterations (int, opcional): Número máximo de iteraciones sin mejora. Valor por defecto es 20.
+    - max_k (int, opcional): Número máximo de vecindarios (profundidad de la sacudida).
+    - max_iterations (int, opcional): Número máximo de iteraciones sin mejora.
 
     Retorna:
     - best_routes (list): Mejor conjunto de rutas encontradas.
     - best_cost (float): Costo total más bajo encontrado.
-
-    Descripción:
-    El algoritmo comienza con una solución inicial generada por clustering y luego explora diferentes vecindarios mediante la función de sacudida. Después de cada sacudida, aplica búsqueda local para intentar mejorar la solución. Si se encuentra una mejor solución, se actualiza y se reinicia la exploración de vecindarios.
-
-    Notas:
-    - Utiliza las funciones 'initialize_routes_clustered', 'shaking' y 'local_search'.
-    - La exploración de vecindarios se realiza incrementando 'k' hasta 'max_k' o hasta encontrar una mejor solución.
     """
     # Inicialización con clustering para cubrir todas las aristas
     routes, vehicle_loads = initialize_routes_clustered(graph, num_vehicles, vehicle_capacity)
@@ -325,13 +287,6 @@ def plot_all_routes(graph, routes):
     Parámetros:
     - graph (networkx.Graph): Grafo de la ciudad obtenido mediante OSMnx.
     - routes (list): Lista de rutas para cada vehículo; cada ruta es una lista de tuplas de aristas (u, v).
-
-    Descripción:
-    La función visualiza las rutas de todos los vehículos en un mapa, utilizando colores distintos para cada uno. Genera una imagen que se guarda en una carpeta 'imagenes' con un nombre que incluye la fecha y hora actual.
-
-    Notas:
-    - Si la carpeta 'imagenes' no existe, se crea automáticamente.
-    - La imagen se muestra en pantalla y luego se cierra para liberar memoria.
     """
     fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
     colors = ['r', 'g', 'b', 'c', 'm', 'y']
@@ -342,6 +297,10 @@ def plot_all_routes(graph, routes):
             if graph.has_edge(u, v):
                 x = [graph.nodes[u]['x'], graph.nodes[v]['x']]
                 y = [graph.nodes[u]['y'], graph.nodes[v]['y']]
+                ax.plot(x, y, color=color, linewidth=2, alpha=0.7)
+            elif graph.has_edge(v, u):  # Considerar aristas en sentido contrario
+                x = [graph.nodes[v]['x'], graph.nodes[u]['x']]
+                y = [graph.nodes[v]['y'], graph.nodes[u]['y']]
                 ax.plot(x, y, color=color, linewidth=2, alpha=0.7)
 
     # Crear la carpeta "imagenes" si no existe
@@ -363,15 +322,11 @@ def plot_all_routes(graph, routes):
 def main():
     """
     Función principal que ejecuta el algoritmo VNS para el PCARP y visualiza las rutas resultantes.
-
-    Descripción:
-    - Obtiene el grafo de una ciudad específica utilizando OSMnx.
-    - Asigna demandas y longitudes aleatorias a las aristas del grafo.
-    - Ejecuta el algoritmo de Búsqueda con Vecindad Variable (VNS) para encontrar las mejores rutas.
-    - Verifica que todas las aristas con demanda fueron asignadas a alguna ruta.
-    - Imprime el costo total y las rutas de cada vehículo.
-    - Genera una visualización de las rutas y la guarda en una imagen.
     """
+
+    # Medir el tiempo de ejecución
+    start_time = time.time()
+
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
     graph = ox.utils_graph.convert.to_undirected(graph)
@@ -380,28 +335,46 @@ def main():
     num_vehicles = 3
 
     # Asignar demandas y longitudes a las aristas
+    edge_count = 0
+    demand_edge_count = 0
     for u, v, key, data in graph.edges(keys=True, data=True):
+        edge_count += 1
         if 'length' not in data:
             data['length'] = random.uniform(50, 500)
         data['demand'] = random.randint(1, 10)
+        if data['demand'] > 0:
+            demand_edge_count += 1
+
+    node_count = graph.number_of_nodes()
+
+    print(f"Información del Grafo:")
+    print(f"Número de nodos: {node_count}")
+    print(f"Número de aristas: {edge_count}")
+    print(f"Número de aristas con demanda: {demand_edge_count}")
 
     # Ejecutar VNS
     best_routes, best_cost = variable_neighborhood_search(graph, num_vehicles, vehicle_capacity)
+
+    end_time = time.time()
+    execution_time = end_time - start_time
 
     # Verificar que todas las aristas con demanda fueron asignadas
     demand_edges = set(frozenset({u, v}) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0)
     assigned_edges = set(frozenset({u, v}) for route in best_routes for u, v in route)
     unassigned_edges = demand_edges - assigned_edges
     if unassigned_edges:
-        print("Advertencia: Las siguientes aristas con demanda no fueron asignadas:")
+        print("\nAdvertencia: Las siguientes aristas con demanda no fueron asignadas:")
         for edge in unassigned_edges:
             print(f"Arista: {tuple(edge)}")
     else:
-        print("Todas las aristas con demanda fueron asignadas a las rutas.")
+        print("\nTodas las aristas con demanda fueron asignadas a las rutas.")
 
-    print(f"Best total cost: {best_cost}")
+    print(f"\nResultados del Algoritmo VNS:")
+    print(f"Costo total de las rutas: {best_cost}")
+    print(f"Tiempo de ejecución: {execution_time:.2f} segundos")
+
     for i, route in enumerate(best_routes):
-        print(f"Vehicle {i + 1} Route: {route}")
+        print(f"Ruta del Vehículo {i + 1}: {route}")
 
     # Visualizar rutas
     plot_all_routes(graph, best_routes)

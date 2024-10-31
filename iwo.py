@@ -5,6 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from collections import deque
+import time
+import os
+import datetime
+
 
 def cluster_graph(graph, num_clusters):
     """
@@ -17,11 +21,6 @@ def cluster_graph(graph, num_clusters):
     Retorna:
     - labels: Lista de etiquetas de clúster asignadas a cada nodo.
     - cluster_centers_: Coordenadas de los centros de los clústeres.
-
-    Descripción:
-    Esta función toma las coordenadas de los nodos del grafo y aplica k-means
-    para agruparlos en clústeres. Luego, asigna a cada nodo la etiqueta del
-    clúster al que pertenece.
     """
     nodes = list(graph.nodes(data=True))
     coordinates = np.array([[data['y'], data['x']] for _, data in nodes])
@@ -35,6 +34,7 @@ def cluster_graph(graph, num_clusters):
         data['cluster'] = labels[i]
 
     return labels, kmeans.cluster_centers_
+
 
 def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_labels):
     """
@@ -50,13 +50,6 @@ def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_lab
     Retorna:
     - routes: Lista de rutas para cada vehículo (listas de aristas).
     - vehicle_loads: Lista de cargas actuales de cada vehículo.
-
-    Descripción:
-    Esta función asigna todas las aristas con demanda a los vehículos,
-    respetando la capacidad de cada uno. Las aristas se agrupan por clúster
-    y se asignan inicialmente al vehículo correspondiente. Luego, se construyen
-    rutas conectadas para cada vehículo, conectando componentes desconectados
-    si es necesario.
     """
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
@@ -144,6 +137,7 @@ def initialize_routes_by_area(graph, num_vehicles, vehicle_capacity, cluster_lab
 
     return routes, vehicle_loads
 
+
 def calculate_total_cost(routes, graph):
     """
     Calcula el costo total de todas las rutas, incluyendo desplazamientos entre aristas.
@@ -154,11 +148,6 @@ def calculate_total_cost(routes, graph):
 
     Retorna:
     - total_cost: Costo total acumulado de todas las rutas.
-
-    Descripción:
-    Esta función suma el costo de recorrer cada arista en las rutas y el costo
-    de desplazarse entre aristas no consecutivas (si es necesario), calculando
-    el camino más corto entre ellas.
     """
     total_cost = 0
     for route in routes:
@@ -181,6 +170,7 @@ def calculate_total_cost(routes, graph):
         # Regresar al depósito si es necesario (opcional)
     return total_cost
 
+
 def mutate_solution_connected(solution, graph, vehicle_capacity):
     """
     Realiza una mutación que mantiene la conectividad de la ruta y la cobertura de todas las demandas.
@@ -192,11 +182,6 @@ def mutate_solution_connected(solution, graph, vehicle_capacity):
 
     Retorna:
     - new_solution: Nueva solución después de la mutación.
-
-    Descripción:
-    Esta función aplica una mutación a una ruta seleccionada al azar,
-    invirtiendo un segmento de la ruta. Se asegura de que la mutación no
-    rompa la conectividad de la ruta ni exceda la capacidad del vehículo.
     """
     new_solution = [route[:] for route in solution]
     vehicle_id = random.choice([i for i in range(len(new_solution)) if new_solution[i]])
@@ -227,6 +212,7 @@ def mutate_solution_connected(solution, graph, vehicle_capacity):
 
     return new_solution
 
+
 def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, initial_population=10, max_population=50):
     """
     Implementación del algoritmo de Invasive Weed Optimization (IWO) para PCARP con clustering de áreas,
@@ -243,12 +229,6 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
     Retorna:
     - best_routes: Las mejores rutas encontradas para cada vehículo.
     - best_cost: El costo total asociado a las mejores rutas.
-
-    Descripción:
-    Este algoritmo aplica IWO para encontrar rutas óptimas que cubran todas las
-    aristas con demanda, respetando las capacidades de los vehículos y
-    manteniendo las rutas conectadas. Utiliza mutaciones y selección basada en
-    costos para evolucionar la población de soluciones.
     """
     num_clusters = num_vehicles
     cluster_labels, cluster_centers = cluster_graph(graph, num_clusters)
@@ -310,6 +290,7 @@ def iwo_algorithm(graph, num_vehicles, vehicle_capacity, max_generations=100, in
 
     return best_routes, best_cost
 
+
 def plot_all_routes(graph, routes):
     """
     Dibuja todas las rutas generadas en un solo mapa con diferentes colores para cada vehículo.
@@ -317,11 +298,6 @@ def plot_all_routes(graph, routes):
     Parámetros:
     - graph: Grafo de NetworkX que representa el mapa.
     - routes: Lista de rutas para cada vehículo (listas de aristas).
-
-    Descripción:
-    Esta función visualiza las rutas de todos los vehículos en el mapa, utilizando
-    diferentes colores para distinguir cada ruta. Ayuda a visualizar la cobertura
-    y conectividad de las rutas generadas.
     """
     fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
 
@@ -333,11 +309,27 @@ def plot_all_routes(graph, routes):
                 x = [graph.nodes[u]['x'], graph.nodes[v]['x']]
                 y = [graph.nodes[u]['y'], graph.nodes[v]['y']]
                 ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
+            elif graph.has_edge(v, u):  # Considerar aristas en sentido contrario
+                x = [graph.nodes[v]['x'], graph.nodes[u]['x']]
+                y = [graph.nodes[v]['y'], graph.nodes[u]['y']]
+                ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
 
+    # Crear la carpeta "imagenes" si no existe
+    if not os.path.exists('imagenes'):
+        os.makedirs('imagenes')
+
+    # Obtener fecha y hora actual
+    now = datetime.datetime.now()
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+    # Guardar la imagen con fecha y hora en el nombre, comenzando con "IWO"
     plt.title("Vehicle Routes")
-    plt.savefig('all_vehicle_routes.png')
+    filename = f'IWO_all_vehicle_routes_{timestamp}.png'
+    filepath = os.path.join('imagenes', filename)
+    plt.savefig(filepath)
     plt.show()
     plt.close()
+
 
 def main_iwo():
     """
@@ -351,6 +343,10 @@ def main_iwo():
     - Imprime el costo total y las rutas de cada vehículo.
     - Genera un gráfico visual de las rutas.
     """
+
+    # Medir el tiempo de ejecución
+    start_time = time.time()
+
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
     graph = ox.utils_graph.convert.to_undirected(graph)
@@ -359,27 +355,50 @@ def main_iwo():
     num_vehicles = 3
 
     # Asignar demandas y longitudes aleatorias a las aristas (si es necesario)
+    edge_count = 0
+    demand_edge_count = 0
     for u, v, key, data in graph.edges(keys=True, data=True):
+        edge_count += 1
         if 'length' not in data:
             data['length'] = random.uniform(50, 500)
         data['demand'] = random.randint(1, 10)
+        if data['demand'] > 0:
+            demand_edge_count += 1
+
+    node_count = graph.number_of_nodes()
+
+    print(f"Información del Grafo:")
+    print(f"Número de nodos: {node_count}")
+    print(f"Número de aristas: {edge_count}")
+    print(f"Número de aristas con demanda: {demand_edge_count}")
+
+
 
     best_routes, best_cost = iwo_algorithm(graph, num_vehicles, vehicle_capacity)
+
+    end_time = time.time()
+    execution_time = end_time - start_time
 
     # Verificar que todas las demandas están cubiertas
     demand_edges = set((u, v) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0)
     assigned_edges = set(edge for route in best_routes for edge in route)
     uncovered_edges = demand_edges - assigned_edges
     if uncovered_edges:
-        print("Las siguientes aristas con demanda no fueron asignadas:", uncovered_edges)
+        print("\nAdvertencia: Las siguientes aristas con demanda no fueron asignadas:")
+        for edge in uncovered_edges:
+            print(f"Arista: {edge}")
     else:
-        print("Todas las aristas con demanda fueron asignadas.")
+        print("\nTodas las aristas con demanda fueron asignadas.")
 
-    print(f"Best total cost: {best_cost}")
+    print(f"\nResultados del Algoritmo IWO:")
+    print(f"Costo total de las rutas: {best_cost}")
+    print(f"Tiempo de ejecución: {execution_time:.2f} segundos")
+
     for i, route in enumerate(best_routes):
-        print(f"Vehicle {i + 1} Route: {route}")
+        print(f"Ruta del Vehículo {i + 1}: {route}")
 
     plot_all_routes(graph, best_routes)
+
 
 if __name__ == "__main__":
     main_iwo()

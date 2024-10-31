@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8e82e708-9929-49ca-b26d-457c0013ccf6" name="Changes" comment="se realizo una modificaciòn de performance a los clusters y recorridos">
+    <list default="true" id="8e82e708-9929-49ca-b26d-457c0013ccf6" name="Changes" comment="Se agrego medicion de tiempo del algoritmo SA">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/iwo.py" beforeDir="false" afterPath="$PROJECT_DIR$/iwo.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/simulatedannealing.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulatedannealing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vns.py" beforeDir="false" afterPath="$PROJECT_DIR$/vns.py" afterDir="false" />
     </list>
@@ -86,7 +87,7 @@
       <workItem from="1730247183644" duration="7778000" />
       <workItem from="1730255200571" duration="197000" />
       <workItem from="1730255585603" duration="2270000" />
-      <workItem from="1730326486024" duration="9076000" />
+      <workItem from="1730326486024" duration="13653000" />
     </task>
     <task id="LOCAL-00001" summary="agrego carpeta donde genere las imagenes, como tambien cambio el nombre de la imagen agregando timetamp para que no existan coincidencias de nombres, ademas gitignore de la carpeta imagenes, como también refactorizacion de los nombres para que se entienda más.">
       <option name="closed" value="true" />
@@ -160,7 +161,15 @@
       <option name="project" value="LOCAL" />
       <updated>1730331112110</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Se agrego medicion de tiempo del algoritmo SA">
+      <option name="closed" value="true" />
+      <created>1730338965400</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1730338965400</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -176,13 +185,14 @@
     <MESSAGE value="se agrega el algoritmo Variable Neighborhood Search como una metaheuristica de pcarp" />
     <MESSAGE value="se implementa clustering para que las areas esten màs conectadas" />
     <MESSAGE value="se realizo una modificaciòn de performance a los clusters y recorridos" />
-    <option name="LAST_COMMIT_MESSAGE" value="se realizo una modificaciòn de performance a los clusters y recorridos" />
+    <MESSAGE value="Se agrego medicion de tiempo del algoritmo SA" />
+    <option name="LAST_COMMIT_MESSAGE" value="Se agrego medicion de tiempo del algoritmo SA" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$vns.coverage" NAME="vns Coverage Results" MODIFIED="1730336513518" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$vns.coverage" NAME="vns Coverage Results" MODIFIED="1730342215537" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/SimulatedAnnealing_v1$otromain.coverage" NAME="otromain Coverage Results" MODIFIED="1730163365607" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$simulatedannealing.coverage" NAME="simulatedannealing Coverage Results" MODIFIED="1730338853006" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$iwo.coverage" NAME="iwo Coverage Results" MODIFIED="1730281605397" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$simulatedannealing.coverage" NAME="simulatedannealing Coverage Results" MODIFIED="1730339818091" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$iwo.coverage" NAME="iwo Coverage Results" MODIFIED="1730341223238" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/SimulatedAnnealing_v1$main_iwo.coverage" NAME="main_iwo Coverage Results" MODIFIED="1730246210833" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$main_iwo.coverage" NAME="main_iwo Coverage Results" MODIFIED="1730247229644" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/SimulatedAnnealing_v1$main.coverage" NAME="main Coverage Results" MODIFIED="1730168776875" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
