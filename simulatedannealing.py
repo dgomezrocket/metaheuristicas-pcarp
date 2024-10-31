@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime
 import os
-
+import time  # Importar el módulo time para medir el tiempo de ejecución
 
 # -------------------------- FUNCIONES PRINCIPALES --------------------------
 
@@ -14,14 +14,14 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
     Inicializa rutas para los vehículos utilizando el algoritmo de Vecino Más Cercano.
 
     Parámetros:
-    - graph: Grafo de la ciudad con arcos que representan las calles y nodos que representan las intersecciones.
-    - num_vehicles: Número de vehículos disponibles para la ruta.
-    - vehicle_capacity: Capacidad máxima de cada vehículo para recolectar demanda.
+    - graph (networkx.Graph): Grafo de la ciudad con arcos que representan las calles y nodos que representan las intersecciones.
+    - num_vehicles (int): Número de vehículos disponibles para la ruta.
+    - vehicle_capacity (int): Capacidad máxima de cada vehículo para recolectar demanda.
 
     Retorna:
-    - routes: Lista de rutas, cada una correspondiente a un vehículo.
-    - vehicle_loads: Lista de la carga acumulada de cada vehículo.
-    - unvisited_edges: Lista de arcos que aún no han sido visitados por los vehículos.
+    - routes (list): Lista de rutas, cada una correspondiente a un vehículo.
+    - vehicle_loads (list): Lista de la carga acumulada de cada vehículo.
+    - unvisited_edges (list): Lista de arcos que aún no han sido visitados por los vehículos.
     """
     # Inicialización de variables
     routes = [[] for _ in range(num_vehicles)]
@@ -58,7 +58,7 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
 
             if not routes[vehicle_id]:
                 routes[vehicle_id].append((u, v))
-                current_node = v
+                current_node = v if current_node == u else u
             else:
                 last_node = routes[vehicle_id][-1][1]
                 if u == last_node:
@@ -76,17 +76,20 @@ def calculate_total_cost(routes, graph):
     Calcula el costo total de todas las rutas generadas.
 
     Parámetros:
-    - routes: Lista de rutas, cada una correspondiente a un vehículo.
-    - graph: Grafo de la ciudad que contiene información de las aristas (longitud).
+    - routes (list): Lista de rutas, cada una correspondiente a un vehículo.
+    - graph (networkx.Graph): Grafo de la ciudad que contiene información de las aristas (longitud).
 
     Retorna:
-    - total_cost: Costo total de todas las rutas en términos de longitud acumulada.
+    - total_cost (float): Costo total de todas las rutas en términos de longitud acumulada.
     """
     total_cost = 0
     for route in routes:
         for u, v in route:
             if graph.has_edge(u, v):
                 edge_data = graph.get_edge_data(u, v)
+                total_cost += edge_data[0]['length']
+            elif graph.has_edge(v, u):  # Agregar esta verificación para grafos no dirigidos
+                edge_data = graph.get_edge_data(v, u)
                 total_cost += edge_data[0]['length']
     return total_cost
 
@@ -96,16 +99,17 @@ def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicl
     Asigna arcos no visitados a los vehículos, priorizando la capacidad y distancia mínima.
 
     Parámetros:
-    - graph: Grafo de la ciudad.
-    - routes: Lista de rutas actuales para cada vehículo.
-    - vehicle_loads: Lista de carga acumulada de cada vehículo.
-    - unvisited_edges: Lista de arcos no visitados.
-    - vehicle_capacity: Capacidad máxima de cada vehículo.
+    - graph (networkx.Graph): Grafo de la ciudad.
+    - routes (list): Lista de rutas actuales para cada vehículo.
+    - vehicle_loads (list): Lista de carga acumulada de cada vehículo.
+    - unvisited_edges (list): Lista de arcos no visitados.
+    - vehicle_capacity (int): Capacidad máxima de cada vehículo.
 
     Retorna:
-    - routes: Rutas actualizadas para cada vehículo.
-    - vehicle_loads: Carga actualizada de cada vehículo.
+    - routes (list): Rutas actualizadas para cada vehículo.
+    - vehicle_loads (list): Carga actualizada de cada vehículo.
     """
+    assigned_edges = []
     for edge in unvisited_edges:
         u, v, key, data = edge
         demand = data['demand']
@@ -118,8 +122,14 @@ def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicl
         for vehicle_id, route in enumerate(routes):
             if vehicle_loads[vehicle_id] + demand <= vehicle_capacity:
                 for idx, (node_u, node_v) in enumerate(route):
-                    distance_to_u = nx.shortest_path_length(graph, source=node_u, target=u, weight='length')
-                    distance_to_v = nx.shortest_path_length(graph, source=node_v, target=v, weight='length')
+                    try:
+                        distance_to_u = nx.shortest_path_length(graph, source=node_u, target=u, weight='length')
+                    except nx.NetworkXNoPath:
+                        distance_to_u = float('inf')
+                    try:
+                        distance_to_v = nx.shortest_path_length(graph, source=node_v, target=v, weight='length')
+                    except nx.NetworkXNoPath:
+                        distance_to_v = float('inf')
 
                     # Actualizar la posición más cercana para insertar el arco
                     if distance_to_u < min_distance:
@@ -136,6 +146,11 @@ def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicl
         if best_vehicle is not None:
             routes[best_vehicle].insert(best_insert_pos + 1, (u, v))
             vehicle_loads[best_vehicle] += demand
+            assigned_edges.append(edge)
+
+    # Remover las aristas asignadas de la lista de no visitadas
+    for edge in assigned_edges:
+        unvisited_edges.remove(edge)
 
     return routes, vehicle_loads
 
@@ -145,23 +160,24 @@ def simulated_annealing(graph, num_vehicles, vehicle_capacity, initial_temp=1200
     Implementa el algoritmo de Simulated Annealing para PCARP.
 
     Parámetros:
-    - graph: Grafo de la ciudad.
-    - num_vehicles: Número de vehículos disponibles para el enrutamiento.
-    - vehicle_capacity: Capacidad máxima de cada vehículo.
-    - initial_temp: Temperatura inicial para el algoritmo.
-    - cooling_rate: Tasa de enfriamiento de la temperatura.
-    - min_temp: Temperatura mínima para detener el algoritmo.
+    - graph (networkx.Graph): Grafo de la ciudad.
+    - num_vehicles (int): Número de vehículos disponibles para el enrutamiento.
+    - vehicle_capacity (int): Capacidad máxima de cada vehículo.
+    - initial_temp (float): Temperatura inicial para el algoritmo.
+    - cooling_rate (float): Tasa de enfriamiento de la temperatura.
+    - min_temp (float): Temperatura mínima para detener el algoritmo.
 
     Retorna:
-    - best_routes: Mejor conjunto de rutas encontradas.
-    - best_cost: Costo total más bajo encontrado.
+    - best_routes (list): Mejor conjunto de rutas encontradas.
+    - best_cost (float): Costo total más bajo encontrado.
     """
     current_routes, vehicle_loads, unvisited_edges = initialize_routes_nearest_neighbor(graph, num_vehicles,
                                                                                         vehicle_capacity)
-    current_cost = calculate_total_cost(current_routes, graph)
-
+    # Asignar aristas no visitadas
     current_routes, vehicle_loads = assign_unvisited_edges(graph, current_routes, vehicle_loads, unvisited_edges,
                                                            vehicle_capacity)
+    current_cost = calculate_total_cost(current_routes, graph)
+
     best_routes = current_routes[:]
     best_cost = current_cost
 
@@ -190,27 +206,49 @@ def simulated_annealing(graph, num_vehicles, vehicle_capacity, initial_temp=1200
 
 def generate_neighbor(routes, graph, vehicle_capacity, vehicle_loads):
     """
-    Genera una solución vecina al intercambiar dos arcos dentro de una ruta.
+    Genera una solución vecina al intercambiar dos arcos dentro de una ruta o entre rutas.
 
     Parámetros:
-    - routes: Rutas actuales de los vehículos.
-    - graph: Grafo de la ciudad.
-    - vehicle_capacity: Capacidad máxima de cada vehículo.
-    - vehicle_loads: Carga acumulada de cada vehículo.
+    - routes (list): Rutas actuales de los vehículos.
+    - graph (networkx.Graph): Grafo de la ciudad.
+    - vehicle_capacity (int): Capacidad máxima de cada vehículo.
+    - vehicle_loads (list): Carga acumulada de cada vehículo.
 
     Retorna:
-    - new_routes: Nueva solución vecina generada por el intercambio de arcos.
-    - new_vehicle_loads: Nueva carga acumulada de los vehículos.
+    - new_routes (list): Nueva solución vecina generada por el intercambio de arcos.
+    - new_vehicle_loads (list): Nueva carga acumulada de los vehículos.
     """
     new_routes = [route[:] for route in routes]
     new_vehicle_loads = vehicle_loads[:]
 
-    # Seleccionar un vehículo con al menos una ruta y realizar el intercambio
-    vehicle_id = random.choice([i for i in range(len(new_routes)) if new_routes[i]])
-    if len(new_routes[vehicle_id]) > 1:
+    # Seleccionar aleatoriamente si se hará un intercambio intra-ruta o inter-ruta
+    if random.random() < 0.5:
+        # Intercambio intra-ruta
+        vehicle_id = random.choice([i for i in range(len(new_routes)) if len(new_routes[i]) > 1])
         idx1, idx2 = random.sample(range(len(new_routes[vehicle_id])), 2)
-        new_routes[vehicle_id][idx1], new_routes[vehicle_id][idx2] = new_routes[vehicle_id][idx2], \
-        new_routes[vehicle_id][idx1]
+        new_routes[vehicle_id][idx1], new_routes[vehicle_id][idx2] = new_routes[vehicle_id][idx2], new_routes[vehicle_id][idx1]
+    else:
+        # Intercambio inter-ruta
+        vehicle_ids = random.sample([i for i in range(len(new_routes)) if new_routes[i]], 2)
+        v1, v2 = vehicle_ids
+        route1 = new_routes[v1]
+        route2 = new_routes[v2]
+
+        idx1 = random.randint(0, len(route1) - 1)
+        idx2 = random.randint(0, len(route2) - 1)
+
+        edge1 = route1[idx1]
+        edge2 = route2[idx2]
+
+        demand1 = graph.get_edge_data(*edge1)[0]['demand']
+        demand2 = graph.get_edge_data(*edge2)[0]['demand']
+
+        # Verificar capacidad
+        if (new_vehicle_loads[v1] - demand1 + demand2 <= vehicle_capacity) and (new_vehicle_loads[v2] - demand2 + demand1 <= vehicle_capacity):
+            # Realizar intercambio
+            route1[idx1], route2[idx2] = edge2, edge1
+            new_vehicle_loads[v1] = new_vehicle_loads[v1] - demand1 + demand2
+            new_vehicle_loads[v2] = new_vehicle_loads[v2] - demand2 + demand1
 
     return new_routes, new_vehicle_loads
 
@@ -220,8 +258,8 @@ def plot_all_routes(graph, routes):
     Dibuja todas las rutas generadas en un solo mapa con diferentes colores para cada vehículo.
 
     Parámetros:
-    - graph: Grafo de la ciudad.
-    - routes: Rutas de los vehículos a visualizar.
+    - graph (networkx.Graph): Grafo de la ciudad.
+    - routes (list): Rutas de los vehículos a visualizar.
     """
     fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
 
@@ -233,6 +271,10 @@ def plot_all_routes(graph, routes):
             if graph.has_edge(u, v):
                 x = [graph.nodes[u]['x'], graph.nodes[v]['x']]
                 y = [graph.nodes[u]['y'], graph.nodes[v]['y']]
+                ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
+            elif graph.has_edge(v, u):  # Verificar arista en sentido contrario
+                x = [graph.nodes[v]['x'], graph.nodes[u]['x']]
+                y = [graph.nodes[v]['y'], graph.nodes[u]['y']]
                 ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
 
     # Crear la carpeta "imagenes" si no existe
@@ -258,6 +300,9 @@ def main():
     Ejecuta el algoritmo de PCARP utilizando Simulated Annealing en un grafo de la ciudad.
     Genera las mejores rutas para los vehículos y las visualiza en un mapa.
     """
+    # Medir el tiempo de ejecución
+    start_time = time.time()
+
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
     graph = ox.utils_graph.convert.to_undirected(graph)
@@ -266,17 +311,48 @@ def main():
     num_vehicles = 3  # Número de vehículos
 
     # Inicializar el grafo con longitud y demanda
+    edge_count = 0
+    total_demand_edges = 0
     for u, v, key, data in graph.edges(keys=True, data=True):
+        edge_count += 1
         if 'length' not in data:
             data['length'] = random.uniform(50, 500)
         data['demand'] = random.randint(1, 10)
+        if data['demand'] > 0:
+            total_demand_edges += 1
+
+    node_count = graph.number_of_nodes()
+
+    print(f"Información del Grafo:")
+    print(f"Número de nodos: {node_count}")
+    print(f"Número de aristas: {edge_count}")
+    print(f"Número de aristas con demanda: {total_demand_edges}")
+
+
 
     # Ejecutar Simulated Annealing para encontrar las mejores rutas
     best_routes, best_cost = simulated_annealing(graph, num_vehicles, vehicle_capacity)
 
-    print(f"Best total cost: {best_cost}")
+    end_time = time.time()
+    execution_time = end_time - start_time
+
+    print(f"\nResultados del Algoritmo de Simulated Annealing:")
+    print(f"Costo total de las rutas: {best_cost}")
+    print(f"Tiempo de ejecución: {execution_time:.2f} segundos")
+
     for i, route in enumerate(best_routes):
-        print(f"Vehicle {i + 1} Route: {route}")
+        print(f"Ruta del Vehículo {i + 1}: {route}")
+
+    # Verificar si todas las aristas con demanda fueron asignadas
+    demand_edges = set(frozenset({u, v}) for u, v, key, data in graph.edges(keys=True, data=True) if data.get('demand', 0) > 0)
+    assigned_edges = set(frozenset({u, v}) for route in best_routes for u, v in route)
+    unassigned_edges = demand_edges - assigned_edges
+    if unassigned_edges:
+        print("\nAdvertencia: Las siguientes aristas con demanda no fueron asignadas:")
+        for edge in unassigned_edges:
+            print(f"Arista: {tuple(edge)}")
+    else:
+        print("\nTodas las aristas con demanda fueron asignadas a las rutas.")
 
     # Generar una sola imagen con todas las rutas
     plot_all_routes(graph, best_routes)
