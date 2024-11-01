@@ -3,6 +3,7 @@ import networkx as nx
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import datetime
 import os
 import time
@@ -26,7 +27,7 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
     # Inicialización de variables
     routes = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
-    unvisited_edges = list(graph.edges(keys=True, data=True))
+    unvisited_edges = [(u, v, data) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0]
 
     # Seleccionar nodos de inicio aleatorios para cada vehículo
     start_nodes = random.sample(list(graph.nodes), num_vehicles)
@@ -39,7 +40,7 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
             edges_from_node = [edge for edge in unvisited_edges if edge[0] == current_node or edge[1] == current_node]
             valid_edges = []
             for edge in edges_from_node:
-                u, v, key, data = edge
+                u, v, data = edge
                 demand = data.get('demand', 1)
                 if vehicle_loads[vehicle_id] + demand <= vehicle_capacity:
                     valid_edges.append(edge)
@@ -49,11 +50,11 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
                 break
 
             # Seleccionar el arco más cercano basado en la longitud
-            nearest_edge = min(valid_edges, key=lambda edge: edge[3]['length'])
+            nearest_edge = min(valid_edges, key=lambda edge: edge[2]['length'])
             unvisited_edges.remove(nearest_edge)
 
             # Actualizar la ruta y la carga del vehículo
-            u, v, key, data = nearest_edge
+            u, v, data = nearest_edge
             vehicle_loads[vehicle_id] += data['demand']
 
             if not routes[vehicle_id]:
@@ -67,6 +68,10 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
                 else:
                     routes[vehicle_id].append((v, u))
                     current_node = u
+
+        # Regresar al depósito (nodo inicial)
+        if routes[vehicle_id]:
+            routes[vehicle_id].append((current_node, start_node))
 
     return routes, vehicle_loads, unvisited_edges
 
@@ -86,7 +91,7 @@ def calculate_total_cost(routes, graph):
     for route in routes:
         if not route:
             continue
-        # Suponiendo que el vehículo inicia y termina en un depósito (por simplicidad, usamos el primer nodo)
+        # Suponiendo que el vehículo inicia y termina en un depósito (primer nodo de la ruta)
         depot = route[0][0]
         current_node = depot
         for edge in route:
@@ -103,17 +108,17 @@ def calculate_total_cost(routes, graph):
             edge_data = graph.get_edge_data(u, v)
             if edge_data is None:
                 edge_data = graph.get_edge_data(v, u)
-                u, v = v, u  # Revertir para mantener el orden correcto
-            if edge_data is not None:
-                # Obtener el primer key disponible
-                edge_key = list(edge_data.keys())[0]
-                edge_length = edge_data[edge_key]['length']
-                total_cost += edge_length
-            else:
-                print(f"No hay arista entre {u} y {v}")
-                continue
+                if edge_data is None:
+                    print(f"No hay arista entre {u} y {v}")
+                    continue
+                else:
+                    u, v = v, u  # Revertir para mantener el orden correcto
+            # Obtener el primer key disponible
+            edge_key = list(edge_data.keys())[0]
+            edge_length = edge_data[edge_key]['length']
+            total_cost += edge_length
             current_node = v  # Mover al siguiente nodo
-        # Regresar al depósito (opcional)
+        # Regresar al depósito
         if current_node != depot:
             try:
                 length = nx.shortest_path_length(graph, source=current_node, target=depot, weight='length')
@@ -122,7 +127,6 @@ def calculate_total_cost(routes, graph):
                 print(f"No hay camino entre {current_node} y {depot}")
                 length = float('inf')
     return total_cost
-
 
 
 def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicle_capacity):
@@ -141,7 +145,7 @@ def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicl
     - vehicle_loads: Carga actualizada de cada vehículo.
     """
     for edge in unvisited_edges:
-        u, v, key, data = edge
+        u, v, data = edge
         demand = data['demand']
 
         min_distance = float('inf')
@@ -198,10 +202,10 @@ def simulated_annealing(graph, num_vehicles, vehicle_capacity, initial_temp=1200
     """
     current_routes, vehicle_loads, unvisited_edges = initialize_routes_nearest_neighbor(graph, num_vehicles,
                                                                                         vehicle_capacity)
-    current_cost = calculate_total_cost(current_routes, graph)
-
     current_routes, vehicle_loads = assign_unvisited_edges(graph, current_routes, vehicle_loads, unvisited_edges,
                                                            vehicle_capacity)
+    current_cost = calculate_total_cost(current_routes, graph)
+
     best_routes = current_routes[:]
     best_cost = current_cost
 
@@ -220,7 +224,7 @@ def simulated_annealing(graph, num_vehicles, vehicle_capacity, initial_temp=1200
 
         # Actualizar la mejor solución encontrada
         if current_cost < best_cost:
-            best_routes = current_routes
+            best_routes = current_routes[:]
             best_cost = current_cost
 
         temp *= cooling_rate
@@ -230,7 +234,7 @@ def simulated_annealing(graph, num_vehicles, vehicle_capacity, initial_temp=1200
 
 def generate_neighbor(routes, graph, vehicle_capacity, vehicle_loads):
     """
-    Genera una solución vecina al intercambiar dos arcos dentro de una ruta.
+    Genera una solución vecina al intercambiar aristas entre rutas de diferentes vehículos.
 
     Parámetros:
     - routes: Rutas actuales de los vehículos.
@@ -239,18 +243,60 @@ def generate_neighbor(routes, graph, vehicle_capacity, vehicle_loads):
     - vehicle_loads: Carga acumulada de cada vehículo.
 
     Retorna:
-    - new_routes: Nueva solución vecina generada por el intercambio de arcos.
+    - new_routes: Nueva solución vecina generada por el intercambio de aristas.
     - new_vehicle_loads: Nueva carga acumulada de los vehículos.
     """
     new_routes = [route[:] for route in routes]
     new_vehicle_loads = vehicle_loads[:]
 
-    # Seleccionar un vehículo con al menos una ruta y realizar el intercambio
-    vehicle_id = random.choice([i for i in range(len(new_routes)) if new_routes[i]])
-    if len(new_routes[vehicle_id]) > 1:
-        idx1, idx2 = random.sample(range(len(new_routes[vehicle_id])), 2)
-        new_routes[vehicle_id][idx1], new_routes[vehicle_id][idx2] = new_routes[vehicle_id][idx2], \
-        new_routes[vehicle_id][idx1]
+    # Seleccionar dos vehículos diferentes
+    vehicle_ids = [i for i in range(len(new_routes)) if new_routes[i]]
+    if len(vehicle_ids) < 2:
+        return new_routes, new_vehicle_loads
+
+    vehicle_id1, vehicle_id2 = random.sample(vehicle_ids, 2)
+
+    route1 = new_routes[vehicle_id1]
+    route2 = new_routes[vehicle_id2]
+
+    # Seleccionar una arista aleatoriamente de cada ruta
+    idx1 = random.randint(0, len(route1) - 1)
+    idx2 = random.randint(0, len(route2) - 1)
+
+    edge1 = route1[idx1]
+    edge2 = route2[idx2]
+
+    # Obtener la demanda para edge1
+    edge_data1 = graph.get_edge_data(*edge1)
+    if edge_data1 is None:
+        edge_data1 = graph.get_edge_data(edge1[1], edge1[0])
+        if edge_data1 is None:
+            print(f"No hay arista entre {edge1[0]} y {edge1[1]}")
+            return new_routes, new_vehicle_loads  # No se puede realizar el intercambio
+        else:
+            edge1 = (edge1[1], edge1[0])
+    demand1 = edge_data1[list(edge_data1.keys())[0]].get('demand', 1)
+
+    # Obtener la demanda para edge2
+    edge_data2 = graph.get_edge_data(*edge2)
+    if edge_data2 is None:
+        edge_data2 = graph.get_edge_data(edge2[1], edge2[0])
+        if edge_data2 is None:
+            print(f"No hay arista entre {edge2[0]} y {edge2[1]}")
+            return new_routes, new_vehicle_loads  # No se puede realizar el intercambio
+        else:
+            edge2 = (edge2[1], edge2[0])
+    demand2 = edge_data2[list(edge_data2.keys())[0]].get('demand', 1)
+
+    # Verificar si el intercambio es factible en términos de capacidad
+    load1 = new_vehicle_loads[vehicle_id1] - demand1 + demand2
+    load2 = new_vehicle_loads[vehicle_id2] - demand2 + demand1
+
+    if load1 <= vehicle_capacity and load2 <= vehicle_capacity:
+        # Realizar el intercambio
+        new_routes[vehicle_id1][idx1], new_routes[vehicle_id2][idx2] = edge2, edge1
+        new_vehicle_loads[vehicle_id1] = load1
+        new_vehicle_loads[vehicle_id2] = load2
 
     return new_routes, new_vehicle_loads
 
@@ -278,6 +324,8 @@ def plot_all_routes(graph, routes):
                 x = [graph.nodes[v]['x'], graph.nodes[u]['x']]
                 y = [graph.nodes[v]['y'], graph.nodes[u]['y']]
                 ax.plot(x, y, color=color, linewidth=3, alpha=0.7)
+            else:
+                print(f"No hay arista entre {u} y {v}")
 
     # Crear la carpeta "imagenes" si no existe
     if not os.path.exists('imagenes'):
@@ -296,6 +344,109 @@ def plot_all_routes(graph, routes):
     plt.close()
 
 
+def get_vehicle_paths(routes, graph):
+    """
+    Genera las rutas completas de los vehículos como listas de nodos,
+    incluyendo el camino entre aristas utilizando el camino más corto.
+
+    Parámetros:
+    - routes: Lista de rutas (aristas) para cada vehículo.
+    - graph: Grafo de la ciudad.
+
+    Retorna:
+    - vehicle_paths: Lista de rutas completas de nodos para cada vehículo.
+    """
+    vehicle_paths = []
+    for route in routes:
+        if not route:
+            vehicle_paths.append([])
+            continue
+        path = []
+        current_node = route[0][0]
+        path.append(current_node)
+        for edge in route:
+            u, v = edge
+            # Añadir el camino desde current_node hasta u si es necesario
+            if current_node != u:
+                try:
+                    shortest_path = nx.shortest_path(graph, source=current_node, target=u, weight='length')
+                    path.extend(shortest_path[1:])  # Excluir el current_node duplicado
+                except nx.NetworkXNoPath:
+                    print(f"No hay camino entre {current_node} y {u}")
+                    continue
+            # Añadir el camino de u a v (la arista actual)
+            path.append(v)
+            current_node = v
+        # Regresar al depósito
+        if current_node != route[0][0]:
+            try:
+                shortest_path = nx.shortest_path(graph, source=current_node, target=route[0][0], weight='length')
+                path.extend(shortest_path[1:])
+            except nx.NetworkXNoPath:
+                print(f"No hay camino entre {current_node} y {route[0][0]}")
+        vehicle_paths.append(path)
+    return vehicle_paths
+
+
+def animate_vehicle_routes(graph, vehicle_paths):
+    """
+    Crea una animación del recorrido de los vehículos en sus rutas.
+
+    Parámetros:
+    - graph: Grafo de la ciudad.
+    - vehicle_paths: Lista de rutas completas de nodos para cada vehículo.
+    """
+    fig, ax = ox.plot_graph(graph, show=False, close=False, bgcolor='w')
+
+    colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
+
+    max_len = max(len(path) for path in vehicle_paths)
+    lines = []
+    texts = []
+    for i, path in enumerate(vehicle_paths):
+        color = colors[i % len(colors)]
+        line, = ax.plot([], [], color=color, linewidth=3, alpha=0.7)
+        lines.append(line)
+        text = ax.text(0.02, 0.95 - i * 0.05, '', transform=ax.transAxes, color=color)
+        texts.append(text)
+
+    def init():
+        for line in lines:
+            line.set_data([], [])
+        for text in texts:
+            text.set_text('')
+        return lines + texts
+
+    def animate(frame):
+        for i, path in enumerate(vehicle_paths):
+            if frame < len(path) - 1:
+                x = [graph.nodes[n]['x'] for n in path[:frame + 1]]
+                y = [graph.nodes[n]['y'] for n in path[:frame + 1]]
+                lines[i].set_data(x, y)
+                # Calcular la distancia acumulada
+                distance = 0
+                for j in range(frame):
+                    u = path[j]
+                    v = path[j + 1]
+                    try:
+                        edge_data = graph.get_edge_data(u, v)
+                        if edge_data is None:
+                            edge_data = graph.get_edge_data(v, u)
+                        edge_key = list(edge_data.keys())[0]
+                        edge_length = edge_data[edge_key]['length']
+                        distance += edge_length
+                    except:
+                        continue
+                texts[i].set_text(f'Vehículo {i + 1}: {distance:.2f} m')
+        return lines + texts
+
+    anim = animation.FuncAnimation(fig, animate, init_func=init,
+                                   frames=max_len, interval=500, blit=True)
+
+    # Guardar la animación como GIF
+    anim.save('vehicle_routes_animation.gif', writer='pillow', fps=2)
+    plt.show()
+
 # -------------------------- EJECUCIÓN PRINCIPAL --------------------------
 
 def main():
@@ -308,7 +459,7 @@ def main():
 
     city_name = 'Maramburé, Luque, Paraguay'
     graph = ox.graph_from_place(city_name, network_type='drive')
-    graph = ox.utils_graph.convert.to_undirected(graph)
+    graph = ox.utils_graph.convert.to_undirected(graph)  # Reemplazar la función deprecada
 
     vehicle_capacity = 600  # Capacidad de cada vehículo
     num_vehicles = 3  # Número de vehículos
@@ -316,7 +467,7 @@ def main():
     # Inicializar el grafo con longitud y demanda
     edge_count = 0
     total_demand_edges = 0
-    for u, v, key, data in graph.edges(keys=True, data=True):
+    for u, v, data in graph.edges(data=True):
         edge_count += 1
         if 'length' not in data:
             data['length'] = random.uniform(50, 500)
@@ -331,10 +482,11 @@ def main():
     print(f"Número de aristas: {edge_count}")
     print(f"Número de aristas con demanda: {total_demand_edges}")
 
-
-
     # Ejecutar Simulated Annealing para encontrar las mejores rutas
     best_routes, best_cost = simulated_annealing(graph, num_vehicles, vehicle_capacity)
+
+    # Obtener las rutas completas de los vehículos
+    vehicle_paths = get_vehicle_paths(best_routes, graph)
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -347,7 +499,7 @@ def main():
         print(f"Ruta del Vehículo {i + 1}: {route}")
 
     # Verificar si todas las aristas con demanda fueron asignadas
-    demand_edges = set(frozenset({u, v}) for u, v, key, data in graph.edges(keys=True, data=True) if data.get('demand', 0) > 0)
+    demand_edges = set(frozenset({u, v}) for u, v, data in graph.edges(data=True) if data.get('demand', 0) > 0)
     assigned_edges = set(frozenset({u, v}) for route in best_routes for u, v in route)
     unassigned_edges = demand_edges - assigned_edges
     if unassigned_edges:
@@ -359,6 +511,9 @@ def main():
 
     # Generar una sola imagen con todas las rutas
     plot_all_routes(graph, best_routes)
+
+    # Crear la animación de los vehículos
+    animate_vehicle_routes(graph, vehicle_paths)
 
 
 if __name__ == "__main__":
