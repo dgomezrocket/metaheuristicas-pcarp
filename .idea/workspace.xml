@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8e82e708-9929-49ca-b26d-457c0013ccf6" name="Changes" comment="Se agrego medicion de tiempo del algoritmo SA">
+    <list default="true" id="8e82e708-9929-49ca-b26d-457c0013ccf6" name="Changes" comment="Se agregan mediciones de tiempo y conteo de nodos, aristas y demandas.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/iwo.py" beforeDir="false" afterPath="$PROJECT_DIR$/iwo.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/simulatedannealing.py" beforeDir="false" afterPath="$PROJECT_DIR$/simulatedannealing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vns.py" beforeDir="false" afterPath="$PROJECT_DIR$/vns.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,26 +44,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.SimulatedAnnealing.executor": "Run",
-    "Python.iwo.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.main_iwo.executor": "Run",
-    "Python.otromain.executor": "Run",
-    "Python.simulatedannealing.executor": "Run",
-    "Python.vns.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/derli/OneDrive/MCC/Computacion Evolutiva/Trabajo Final/Presentacion/SA",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.SimulatedAnnealing.executor&quot;: &quot;Run&quot;,
+    &quot;Python.iwo.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main_iwo.executor&quot;: &quot;Run&quot;,
+    &quot;Python.otromain.executor&quot;: &quot;Run&quot;,
+    &quot;Python.simulatedannealing.executor&quot;: &quot;Run&quot;,
+    &quot;Python.vns.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/derli/OneDrive/MCC/Computacion Evolutiva/Trabajo Final/Presentacion/SA&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -87,7 +85,8 @@
       <workItem from="1730247183644" duration="7778000" />
       <workItem from="1730255200571" duration="197000" />
       <workItem from="1730255585603" duration="2270000" />
-      <workItem from="1730326486024" duration="13653000" />
+      <workItem from="1730326486024" duration="15473000" />
+      <workItem from="1730418326081" duration="956000" />
     </task>
     <task id="LOCAL-00001" summary="agrego carpeta donde genere las imagenes, como tambien cambio el nombre de la imagen agregando timetamp para que no existan coincidencias de nombres, ademas gitignore de la carpeta imagenes, como también refactorizacion de los nombres para que se entienda más.">
       <option name="closed" value="true" />
@@ -169,7 +168,15 @@
       <option name="project" value="LOCAL" />
       <updated>1730338965400</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Se agregan mediciones de tiempo y conteo de nodos, aristas y demandas.">
+      <option name="closed" value="true" />
+      <created>1730369996083</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1730369996083</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -186,12 +193,13 @@
     <MESSAGE value="se implementa clustering para que las areas esten màs conectadas" />
     <MESSAGE value="se realizo una modificaciòn de performance a los clusters y recorridos" />
     <MESSAGE value="Se agrego medicion de tiempo del algoritmo SA" />
-    <option name="LAST_COMMIT_MESSAGE" value="Se agrego medicion de tiempo del algoritmo SA" />
+    <MESSAGE value="Se agregan mediciones de tiempo y conteo de nodos, aristas y demandas." />
+    <option name="LAST_COMMIT_MESSAGE" value="Se agregan mediciones de tiempo y conteo de nodos, aristas y demandas." />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$vns.coverage" NAME="vns Coverage Results" MODIFIED="1730342215537" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$vns.coverage" NAME="vns Coverage Results" MODIFIED="1730371171407" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/SimulatedAnnealing_v1$otromain.coverage" NAME="otromain Coverage Results" MODIFIED="1730163365607" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$simulatedannealing.coverage" NAME="simulatedannealing Coverage Results" MODIFIED="1730339818091" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$simulatedannealing.coverage" NAME="simulatedannealing Coverage Results" MODIFIED="1730418867720" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$iwo.coverage" NAME="iwo Coverage Results" MODIFIED="1730341223238" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/SimulatedAnnealing_v1$main_iwo.coverage" NAME="main_iwo Coverage Results" MODIFIED="1730246210833" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Algoritmos_PCARP_v2$main_iwo.coverage" NAME="main_iwo Coverage Results" MODIFIED="1730247229644" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

@@ -73,25 +73,50 @@ def initialize_routes_nearest_neighbor(graph, num_vehicles, vehicle_capacity):
 
 def calculate_total_cost(routes, graph):
     """
-    Calcula el costo total de todas las rutas generadas.
+    Calcula el costo total de todas las rutas, incluyendo el costo de recorrer las aristas en las rutas
+    y el costo de desplazamiento entre las aristas (costo muerto o "deadhead cost").
 
     Parámetros:
-    - routes: Lista de rutas, cada una correspondiente a un vehículo.
-    - graph: Grafo de la ciudad que contiene información de las aristas (longitud).
+    - routes: Lista de rutas, donde cada ruta es una lista de aristas representadas como tuplas (u, v).
+      Cada ruta corresponde al camino que sigue un vehículo.
+    - graph: Grafo de NetworkX que representa el mapa de la ciudad, con atributos en las aristas que incluyen 'length'.
 
     Retorna:
-    - total_cost: Costo total de todas las rutas en términos de longitud acumulada.
+    - total_cost: Costo total acumulado de todas las rutas, calculado como la suma de las longitudes de todas
+      las aristas recorridas, incluyendo tanto las aristas de servicio como los caminos tomados para moverse entre ellas.
     """
     total_cost = 0
     for route in routes:
+        if not route:
+            continue  # Saltar rutas vacías
+        # Iniciar en el primer nodo de la primera arista en la ruta
+        current_node = route[0][0]
         for u, v in route:
+            # Calcular el costo de moverse desde current_node al nodo inicial u de la arista actual
+            if current_node != u:
+                try:
+                    # Encontrar la longitud del camino más corto entre current_node y u
+                    path_length = nx.shortest_path_length(graph, source=current_node, target=u, weight='length')
+                    total_cost += path_length
+                except nx.NetworkXNoPath:
+                    # Si no hay camino, imprimir una advertencia y continuar
+                    print(f"No hay camino entre {current_node} y {u}.")
+                    continue
+            # Agregar el costo de recorrer la arista actual (u, v)
             if graph.has_edge(u, v):
                 edge_data = graph.get_edge_data(u, v)
+                # Si existen múltiples aristas entre u y v, seleccionar la primera
                 total_cost += edge_data[0]['length']
-            elif graph.has_edge(v, u):  # Considerar aristas en sentido contrario
+            elif graph.has_edge(v, u):
                 edge_data = graph.get_edge_data(v, u)
                 total_cost += edge_data[0]['length']
+            else:
+                # Si la arista no existe en el grafo, imprimir una advertencia
+                print(f"Arista ({u}, {v}) no encontrada en el grafo.")
+            # Actualizar current_node al nodo final v de la arista actual
+            current_node = v
     return total_cost
+
 
 
 def assign_unvisited_edges(graph, routes, vehicle_loads, unvisited_edges, vehicle_capacity):
