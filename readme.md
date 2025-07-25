@@ -29,33 +29,30 @@ Este proyecto implementa tres metaheurísticas competitivas del estado del arte:
 
 ## Estructura del Proyecto
 
-
-.
+```
 ├── algoritmos/
 │   ├── vns.py                # Implementación del algoritmo Variable Neighborhood Search
 │   ├── iwo.py                # Implementación del algoritmo Invasive Weed Optimization
 │   └── simulatedannealing.py # Implementación del algoritmo Simulated Annealing
 │
 ├── visualizacion/
-│   ├── vns_DibujarRutas.py   # Visualización animada de resultados del algoritmo VNS
-│   ├── iwo_DibujoRutas.py    # Visualización animada de resultados del algoritmo IWO
-│   └── SA_DibujoRutas.py     # Visualización animada de resultados de Simulated Annealing
+│   ├── vns_DibujarRutas.py   # Visualización animada de rutas obtenidas con VNS
+│   ├── iwo_DibujoRutas.py    # Visualización animada de rutas obtenidas con IWO
+│   └── SA_DibujoRutas.py     # Visualización animada de rutas de Simulated Annealing
 │
 ├── experimentos/
-│   ├── comparativa.py        # Script para ejecutar análisis comparativo entre algoritmos
-│   └── benchmarks/           # Instancias del problema para evaluación de rendimiento
+│   ├── comparativa.py        # Script principal para comparar el rendimiento de los algoritmos
+│   └── benchmarks/           # Instancias del problema empleadas para evaluar los algoritmos
 │
 ├── docs/
-│   ├── CARP_Derlis_Gomez_v3.pdf          # Presentación técnica del trabajo
-│   ├── IMRAD_PCARP_DERLIS_GOMEZ_v3.pdf   # Reporte técnico en formato IMRAD
-│   └── imagenes/                         # Imágenes y diagramas utilizados en la documentación
+│   ├── CARP_Derlis_Gomez_v3.pdf        # Presentación técnica del trabajo
+│   ├── IMRAD_PCARP_DERLIS_GOMEZ_v3.pdf # Reporte técnico en formato IMRAD
+│   └── imagenes/                       # Imágenes y diagramas utilizados en la documentación
 │
-│
-├── .gitignore                # Archivos y directorios ignorados por git
-├── requirements.txt          # Dependencias y bibliotecas necesarias
-└── README.md                 # Este archivo
-
-
+├── .gitignore                # Lista de archivos/directorios que Git debe ignorar
+├── requirements.txt          # Dependencias de Python necesarias para ejecutar el proyecto
+└── README.md                 # Este archivo de documentación
+```
 
 ## Resultados Visuales
 
